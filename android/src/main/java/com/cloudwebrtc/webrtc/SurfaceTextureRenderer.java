@@ -2,6 +2,8 @@ package com.cloudwebrtc.webrtc;
 
 import android.graphics.SurfaceTexture;
 
+import com.cloudwebrtc.webrtc.utils.AnyRendererEvents;
+
 import org.webrtc.EglBase;
 import org.webrtc.EglRenderer;
 import org.webrtc.GlRectDrawer;
@@ -21,7 +23,7 @@ import java.util.concurrent.CountDownLatch;
  */
 public class SurfaceTextureRenderer extends EglRenderer {
   // Callback for reporting renderer events. Read-only after initilization so no lock required.
-  private RendererCommon.RendererEvents rendererEvents;
+  private AnyRendererEvents rendererEvents;
   private final Object layoutLock = new Object();
   private boolean isRenderingPaused;
   private boolean isFirstFrameRendered;
@@ -37,7 +39,7 @@ public class SurfaceTextureRenderer extends EglRenderer {
   }
 
   public void init(final EglBase.Context sharedContext,
-                   RendererCommon.RendererEvents rendererEvents) {
+                   AnyRendererEvents rendererEvents) {
     init(sharedContext, rendererEvents, EglBase.CONFIG_PLAIN, new GlRectDrawer());
   }
 
@@ -48,7 +50,7 @@ public class SurfaceTextureRenderer extends EglRenderer {
    * init()/release() cycle.
    */
   public void init(final EglBase.Context sharedContext,
-                   RendererCommon.RendererEvents rendererEvents, final int[] configAttributes,
+                   AnyRendererEvents rendererEvents, final int[] configAttributes,
                    RendererCommon.GlDrawer drawer) {
     ThreadUtils.checkIsOnMainThread();
     this.rendererEvents = rendererEvents;
@@ -138,6 +140,8 @@ public class SurfaceTextureRenderer extends EglRenderer {
         texture.setDefaultBufferSize(rotatedFrameWidth, rotatedFrameHeight);
         frameRotation = frame.getRotation();
       }
+
+      rendererEvents.onFrameRendered(frame);
     }
   }
 }

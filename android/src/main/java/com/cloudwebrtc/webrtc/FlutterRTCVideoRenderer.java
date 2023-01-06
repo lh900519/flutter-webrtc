@@ -1,21 +1,37 @@
 package com.cloudwebrtc.webrtc;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.opengl.GLES20;
+import android.opengl.GLUtils;
 import android.util.Log;
 import android.graphics.SurfaceTexture;
 
+import com.cloudwebrtc.webrtc.utils.AnyRendererEvents;
 import com.cloudwebrtc.webrtc.utils.AnyThreadSink;
 import com.cloudwebrtc.webrtc.utils.ConstraintsMap;
 import com.cloudwebrtc.webrtc.utils.EglUtils;
+import com.cloudwebrtc.webrtc.utils.YuvFrame;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.function.Function;
 
 import org.webrtc.EglBase;
 import org.webrtc.MediaStream;
 import org.webrtc.RendererCommon.RendererEvents;
+import org.webrtc.TextureBufferImpl;
+import org.webrtc.VideoFrame;
 import org.webrtc.VideoTrack;
+import org.webrtc.YuvConverter;
 
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.view.TextureRegistry;
+
+
+// https://github.com/flutter-webrtc/flutter-webrtc/issues/108
+// https://github.com/flutter-webrtc/flutter-webrtc/issues/110
 
 public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
 
@@ -41,10 +57,59 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
      * The {@code RendererEvents} which listens to rendering events reported by
      * {@link #surfaceTextureRenderer}.
      */
-    private RendererEvents rendererEvents;
+    private AnyRendererEvents rendererEvents;
 
     private void listenRendererEvents() {
-        rendererEvents = new RendererEvents() {
+        rendererEvents = new AnyRendererEvents() {
+
+            @Override
+            public void onFrameRendered(VideoFrame frame) {
+
+                VideoFrame.I420Buffer buffer = frame.getBuffer().toI420();
+
+                YuvFrame yuvFrame = new YuvFrame(frame, YuvFrame.PROCESSING_NONE);
+                Bitmap bitmap = yuvFrame.getBitmap();
+
+                // int height = buffer.getHeight();
+                // int width = buffer.getWidth();
+                //
+                // Log.w(TAG, "onFrameRendered width: "+width+", height:" +height);
+                //
+                // ByteBuffer yBuffer = buffer.getDataY();
+                // ByteBuffer uBuffer = buffer.getDataU();
+                // ByteBuffer vBuffer = buffer.getDataV();
+                //
+                // int yStride = buffer.getStrideY();
+                // int uStride = buffer.getStrideU();
+                // int vStride = buffer.getStrideV();
+                //
+                // byte[] data = new byte[height * width * 3 / 2];
+                // yBuffer.get(data, 0, height * width);
+                //
+                // int uOffset = width * height;
+                // int vOffset = width * height * 5 / 4;
+                // for (int i = 0; i < height / 2; i++) {
+                //      uBuffer.position(i * uStride);
+                //      uBuffer.get(data, uOffset, width / 2);
+                //      uOffset += width / 2;
+                //      vBuffer.position(i * vStride);
+                //      vBuffer.get(data, vOffset, width / 2);
+                //      vOffset += width / 2;
+                //  }
+                // buffer.release();
+
+                // Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
+
+
+                ConstraintsMap params = new ConstraintsMap();
+                params.putString("event", "onVideoFrame");
+                params.putInt("id", id);
+                params.putByte("data", baos.toByteArray());
+                eventSink.success(params.toMap());
+            }
+
             private int _rotation = -1;
             private int _width = 0, _height = 0;
 
@@ -105,6 +170,10 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
         this.texture = texture;
         this.eventSink = null;
         this.entry = entry;
+    }
+
+    void onFrame(VideoFrame frame) {
+
     }
 
     public void setEventChannel(EventChannel eventChannel) {

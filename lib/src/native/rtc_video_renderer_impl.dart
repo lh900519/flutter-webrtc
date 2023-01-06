@@ -8,6 +8,8 @@ import 'package:webrtc_interface/webrtc_interface.dart';
 import '../helper.dart';
 import 'utils.dart';
 
+typedef frameCallBack = void Function(Uint8List? data);
+
 class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
     implements VideoRenderer {
   RTCVideoRenderer() : super(RTCVideoValue.empty);
@@ -44,6 +46,8 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
 
   @override
   Function? onFirstFrameRendered;
+
+  frameCallBack? onFrame;
 
   @override
   set srcObject(MediaStream? stream) {
@@ -108,6 +112,10 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
       case 'didFirstFrameRendered':
         value = value.copyWith(renderVideo: renderVideo);
         onFirstFrameRendered?.call();
+        break;
+      case 'onVideoFrame':
+        Uint8List? data = map['data'];
+        onFrame?.call(data);
         break;
     }
   }
